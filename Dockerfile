@@ -34,19 +34,15 @@ COPY . .
 RUN chown -R www-data:www-data /var/www \
     && chmod -R 775 storage bootstrap/cache
 
-# Instalar dependências do Laravel
+# Instalar dependências do Laravel (Somente o que é necessário para o build)
 RUN composer install --no-dev --optimize-autoloader
-
-# Gerar key, rodar migrations e otimizar
-RUN php artisan key:generate \
-    && php artisan migrate --force \
-    && php artisan config:clear \
-    && php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
 
 # Expor porta usada pelo Render
 EXPOSE 10000
 
-# Comando de inicialização
-CMD php artisan serve --host=0.0.0.0 --port=10000
+# O SEGREDO: Comandos de runtime vão no CMD
+CMD php artisan migrate --force && \
+    php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache && \
+    php artisan serve --host=0.0.0.0 --port=10000
