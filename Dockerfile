@@ -1,7 +1,6 @@
-# Imagem base
 FROM php:8.2-cli
 
-# Instalar dependências do sistema
+# Dependências do sistema
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -11,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     zip \
     curl \
+    ca-certificates \
+    gnupg \
     && docker-php-ext-install \
     pdo \
     pdo_mysql \
@@ -21,28 +22,25 @@ RUN apt-get update && apt-get install -y \
     bcmath \
     gd
 
-# Instalar Composer
+# Node 18 (necessário pro Vite)
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Definir diretório de trabalho
 WORKDIR /var/www
-
-# Copiar arquivos do projeto
 COPY . .
 
 # Permissões
 RUN chown -R www-data:www-data /var/www \
     && chmod -R 775 storage bootstrap/cache
 
-# Instalar dependências do Laravel (Somente o que é necessário para o build)
+# Dependências + build
 RUN composer install --no-dev --optimize-autoloader
+RUN npm install
+RUN npm run build
 
-# Expor porta usada pelo Render
-EXPOSE 10000
-
-# O SEGREDO: Comandos de runtime vão no CMD
-CMD php artisan migrate --force && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache && \
-    php artisan serve --host=0.0.0.0 --port=10000
+# Start
+CMD php artisan optimize:clear && \
+    php artisan serve --host=0.0.0.0 --port=$PORT
